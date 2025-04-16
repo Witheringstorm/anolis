@@ -75,51 +75,57 @@ def main(args: argparse.Namespace):
     print(f"Text tokenizer path: {TOKENIZER_TEXT_PATH}")
     print(f"Image tokenizer config path: {TOKENIZER_IMAGE_CFG_PATH}")
     print(f"Image tokenizer path: {TOKENIZER_IMAGE_PATH}")
-    # Generate options
-    options = Options()
-    # Prepare prompt
-    input_path: Path = Path(args.input)
-    with open(input_path, "r") as f:
-        input_segs: List[Dict[str, str]] = json.load(f)
-        assert not input_segs is None
-    batch_prompt_ui = [[]]
-    for input_seg in input_segs:
-        if input_seg["type"] == "text":
-            batch_prompt_ui[0] += [
-                {"type": "text", "value": input_seg["content"]}
-            ]
-        else:
-            assert input_seg["type"] == "image"
-            abs_path: Path = os.path.abspath(input_seg["content"])
-            batch_prompt_ui[0] += [
-                {"type": "image", "value": f"file:{abs_path}"},
-            ]
-    # generate
-    tokens: torch.LongTensor = model.generate(
-        batch_prompt_ui=batch_prompt_ui,
-        options=options
-    )
-    # split
-    boi, eoi = model.vocab.begin_image, model.vocab.end_image   # 8197(boi), 8196(eoi)
-    segments = split_token_sequence(tokens, boi, eoi)
-    # decode
-    os.makedirs(args.save_dir, exist_ok=True)
-    for seg_id, (seg_type, seg_tokens) in enumerate(segments):
-        if seg_type == "image_seg":
-            assert seg_tokens.shape[1] == 1024
-            img: Image = model.decode_image(seg_tokens)[0]
-            image_path = os.path.join(args.save_dir, f"{seg_id}.png")
-            img.save(image_path)
-            print(f"<img: {image_path}>")
-        else:
-            assert seg_type == "text_seg"
-            decoded_text = model.decode_text(seg_tokens)[0]
-            print(decoded_text)
+    while True:
+        path_ = input("Enter the path of the input file: ")
+        # Generate options
+        options = Options()
+        # Prepare prompt
+        input_path: Path = Path(path_)
+        # Check if file is JSON
+        if not input_path.suffix.lower() == '.json':
+            print(f"File '{input_path}' is not a JSON file.")
+            input_path = Path("./input.json")
+        with open(input_path, "r") as f:
+            input_segs: List[Dict[str, str]] = json.load(f)
+            assert not input_segs is None
+        batch_prompt_ui = [[]]
+        for input_seg in input_segs:
+            if input_seg["type"] == "text":
+                batch_prompt_ui[0] += [
+                    {"type": "text", "value": input_seg["content"]}
+                ]
+            else:
+                assert input_seg["type"] == "image"
+                abs_path: Path = os.path.abspath(input_seg["content"])
+                batch_prompt_ui[0] += [
+                    {"type": "image", "value": f"file:{abs_path}"},
+                ]
+        # generate
+        tokens: torch.LongTensor = model.generate(
+            batch_prompt_ui=batch_prompt_ui,
+            options=options
+        )
+        # split
+        boi, eoi = model.vocab.begin_image, model.vocab.end_image   # 8197(boi), 8196(eoi)
+        segments = split_token_sequence(tokens, boi, eoi)
+        # decode
+        os.makedirs(args.save_dir, exist_ok=True)
+        for seg_id, (seg_type, seg_tokens) in enumerate(segments):
+            if seg_type == "image_seg":
+                assert seg_tokens.shape[1] == 1024
+                img: Image = model.decode_image(seg_tokens)[0]
+                image_path = os.path.join(args.save_dir, f"{seg_id}.png")
+                img.save(image_path)
+                print(f"<img: {image_path}>")
+            else:
+                assert seg_type == "text_seg"
+                decoded_text = model.decode_text(seg_tokens)[0]
+                print(decoded_text)
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Generate interleaved image-text content based on text instructions.")
-    parser.add_argument("-i", "--input", type=str, required=True, help="The multimodal input file.")
+    parser.add_argument("-i", "--input", type=str, default="./input.json", help="The multimodal input file.")
     parser.add_argument("-s", "--save_dir", type=str, default="./outputs/inference/", help="The directory to save the generated images.")
     args: argparse.Namespace = parser.parse_args()
     return args

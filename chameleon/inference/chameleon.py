@@ -577,6 +577,8 @@ class ChameleonInferenceModel:
                 w.join()
         except FileNotFoundError:
             pass
+        except AttributeError:
+            print("AttributeError")
 
     def stream(
         self,

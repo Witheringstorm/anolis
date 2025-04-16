@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-ckpt_path = Path(os.getenv("CKPT_PATH", "./data"))
+ckpt_path = Path(os.getenv("CKPT_PATH", "/public/share/yinxiangrong/qinxiaoyu/kdc2024/Exp/models/Anole-7b-v0.1"))
 
 MODEL_7B_PATH = ckpt_path / "models" / "7b"
 
